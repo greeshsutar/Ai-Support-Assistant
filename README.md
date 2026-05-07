@@ -1,4 +1,4 @@
-# AI-Support-Assiistent- 
+# AI-Support-Assistent- 
 A lightweight RAG-based (Retrieval Augmented Generation) Support Assistant built using **Groq LLM + ChromaDB + LangChain + Streamlit**.
 
 The agent answers user queries using your FAQ data, ensuring accurate and context-based responses.
