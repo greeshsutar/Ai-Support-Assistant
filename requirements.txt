@@ -1,6 +1,6 @@
 streamlit
 groq==0.36.0
-sentence-transformers
+sentence-transformers==3.0.1
 langchain
 langchain_openai
 langchain-community
