@@ -1,4 +1,6 @@
 # retriever.py
+import os
+os.environ["HF_HOME"] = "/tmp/hf_cache"
 from pathlib import Path
 import chromadb
 from chromadb.config import Settings
