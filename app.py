@@ -5,7 +5,13 @@ from agent import SupportAgent
 st.title("AI Support Assistant 🤖")
 st.write("Ask any question and I will do my best to help.")
 
-agent = SupportAgent()
+
+@st.cache_resource
+def load_agent():
+    return SupportAgent()
+
+
+agent = load_agent()
 
 query = st.text_input("Your question:")
 
