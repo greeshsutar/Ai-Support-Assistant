@@ -1,6 +1,7 @@
 # retriever.py
 from pathlib import Path
-import re
+import chromadb
+from sentence_transformers import SentenceTransformer
 
 
 class FAQRetriever:
@@ -11,27 +12,42 @@ class FAQRetriever:
         # Split FAQs into blocks separated by blank lines
         self.chunks = [c.strip() for c in text.split("\n\n") if c.strip()]
 
-    def _tokens(self, s: str):
-        # Simple tokenization to words
-        return set(re.findall(r"\w+", s.lower()))
+        # Load embedding model
+        self.embedder = SentenceTransformer("all-MiniLM-L6-v2")
+
+        # Set up in-memory ChromaDB client + collection
+        self.client = chromadb.Client()
+        self.collection = self.client.get_or_create_collection(name="faqs")
+
+        # Embed and index all FAQ chunks (only if collection is empty)
+        if self.collection.count() == 0:
+            embeddings = self.embedder.encode(self.chunks).tolist()
+            ids = [f"faq_{i}" for i in range(len(self.chunks))]
+            self.collection.add(
+                documents=self.chunks,
+                embeddings=embeddings,
+                ids=ids,
+            )
 
     def get_relevant(self, query: str, k: int = 3):
-        q_tokens = self._tokens(query)
+        # Embed the query
+        query_embedding = self.embedder.encode([query]).tolist()
 
-        scored = []
-        for chunk in self.chunks:
-            c_tokens = self._tokens(chunk)
-            score = len(q_tokens & c_tokens)  # number of overlapping words
-            scored.append((score, chunk))
+        # Semantic search against ChromaDB
+        results = self.collection.query(
+            query_embeddings=query_embedding,
+            n_results=min(k, len(self.chunks)),
+        )
 
-        # sort by score descending
-        scored.sort(key=lambda x: x[0], reverse=True)
+        docs = results["documents"][0] if results["documents"] else []
+        distances = results["distances"][0] if results["distances"] else []
 
-        # take top k with score > 0
-        top = [c for score, c in scored if score > 0][:k]
+        # Filter out weak matches (lower distance = more similar)
+        # Cosine distance threshold — tune based on testing
+        relevant = [doc for doc, dist in zip(docs, distances) if dist < 1.0]
 
-        # if nothing matches, just return one chunk so LLM has something
-        if not top and self.chunks:
-            top = [self.chunks[0]]
+        # Fallback: if nothing passes the threshold, return the closest match anyway
+        if not relevant and docs:
+            relevant = [docs[0]]
 
-        return top
+        return relevant
